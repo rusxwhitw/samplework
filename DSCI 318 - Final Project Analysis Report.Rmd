@@ -1,0 +1,371 @@
+---
+title: "DSCI 318 - Final Project Analysis Report"
+author: "Russell Whitworth"
+date: "2022-12-08"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+#clear memory
+rm(list = ls())
+```
+
+# Objective
+I want to create the best model to predict salary using contract length, team under contract for, and primary position played by a player. I will use backwards selection to create 9 models: full model, model with all three 2 way interactions, three models with two 2-way interactions, three models with a singular two way interaction, and the basic model; and determine the best model using adjusted r-squared.
+
+# Data Summary
+The dataset used in this project, Major League Baseball Salaries 2021, was collected from USA Today Sports. This dataset details MLB salaries based upon each team's opening day roster at the beginning of the 2021 MLB season. Detailed within the source dataset are the following:
+
+* Name: player name
+* Team: team of player
+* POS: primary position of player
+* Salary: average annual value (AAV) of the contract in USD
+* Years: length of current contract in years and the years the contract spans
+* Total.Value: total value of the contract in USD  
+
+I made the following changes to the dataset outside of R:  
+
+- Created Years_Length: extracts the length of current contract in years from Years column
+- Changed Salary and Total.Value from strings to numeric values by removing commas
+
+### Reading Dataset into R
+```{r}
+salary <- read.csv("salary.csv")
+
+salary <- salary[,c("Team", "POS", "Years_Length", "Salary")]
+salary$Team <- as.factor(salary$Team)
+salary$POS <- as.factor(salary$POS)
+head(salary)
+```
+
+### Visualizing the Predictors
+```{r}
+boxplot(Salary~Team,data=salary, main="Boxplot of Salary by Team",
+   xlab="Team", ylab="Salary (AAV)")
+```
+
+```{r}
+boxplot(Salary~POS,data=salary, main="Boxplot of Salary by Position",
+   xlab="Primary Position", ylab="Salary (AAV)")
+```
+
+```{r}
+boxplot(Salary~Years_Length,data=salary, main="Boxplot of Length of Contract to Predict Salary",
+   xlab="Length of Contract", ylab="Salary (AAV)")
+```
+
+# Models and Diagnosis
+
+## Full Model
+```{r}
+fullmodel.lm <- lm(Salary ~ POS * Team * Years_Length, salary)
+fullmodelr2 <- summary(fullmodel.lm)$r.squared
+fullmodeladjustedr2 <- summary(fullmodel.lm)$adj.r.squared
+
+# Printing out the first 10 coefficients and r-squared metrics
+coef(fullmodel.lm)[0:10]
+cat("R-Squared:", fullmodelr2, "\nAdjusted R-Squared:", fullmodeladjustedr2)
+```
+
+### ANOVA Analysis of Full Model
+```{r}
+salaryfull.aov <- aov(Salary ~ Team * POS * Years_Length, salary)
+summary(salaryfull.aov)
+```
+
+```{r}
+summaryanova <- summary(salaryfull.aov)[[1]]["Df"]
+df <- summary(salaryfull.aov)[[1]]["F value"]
+colnames(df) <- gsub(" ", ".", colnames(df))
+
+df$FCrit <- with(summaryanova, qf(c(0.05),Df,299,lower.tail=FALSE))
+df$IsSignificant <- with(df, ifelse(F.value > FCrit, 1, 0))
+df
+```
+Using alpha=0.05, all of the main effects and interactions are significant.
+
+## Model with interaction between Team and POS (MODEL 2)
+```{r}
+salary2.lm <- lm(Salary ~ Team * POS + Years_Length, salary)
+model2r2 <- summary(salary2.lm)$r.squared
+model2adjustedr2 <- summary(salary2.lm)$adj.r.squared
+
+# Printing out the first 10 coefficients and r-squared metrics
+coef(salary2.lm)[0:10]
+cat("R-Squared:", model2r2, "\nAdjusted R-Squared:", model2adjustedr2)
+```
+
+### ANOVA Analysis of Model 2
+```{r}
+salary2.aov <- aov(Salary ~ Team * POS + Years_Length, salary)
+summary(salary2.aov)
+```
+
+```{r}
+summaryanova <- summary(salary2.aov)[[1]]["Df"]
+df <- summary(salary2.aov)[[1]]["F value"]
+colnames(df) <- gsub(" ", ".", colnames(df))
+
+df$FCrit <- with(summaryanova, qf(c(0.05),Df,394,lower.tail=FALSE))
+df$IsSignificant <- with(df, ifelse(F.value > FCrit, 1, 0))
+df
+```
+Using alpha=0.05, all of the main effects and interactions are significant.
+
+## Model with interaction between Team and Years_Length (MODEL 3)
+```{r}
+salary3.lm <- lm(Salary ~ Team * Years_Length + POS, salary)
+model3r2 <- summary(salary3.lm)$r.squared
+model3adjustedr2 <- summary(salary3.lm)$adj.r.squared
+
+# Printing out the first 10 coefficients and r-squared metrics
+coef(salary3.lm)[0:10]
+cat("R-Squared:", model3r2, "\nAdjusted R-Squared:", model3adjustedr2)
+```
+
+### ANOVA Analysis of Model 3
+```{r}
+salary3.aov <- aov(Salary ~ Team * Years_Length + POS, salary)
+summary(salary3.aov)
+```
+
+```{r}
+summaryanova <- summary(salary3.aov)[[1]]["Df"]
+df <- summary(salary3.aov)[[1]]["F value"]
+colnames(df) <- gsub(" ", ".", colnames(df))
+
+df$FCrit <- with(summaryanova, qf(c(0.05),Df,559,lower.tail=FALSE))
+df$IsSignificant <- with(df, ifelse(F.value > FCrit, 1, 0))
+df
+```
+Using alpha=0.05, all of the main effects and interactions are significant.
+
+## Model with interaction between POS and Years_Length (MODEL 4)
+```{r}
+salary4.lm <- lm(Salary ~ Team + Years_Length * POS, salary)
+model4r2 <- summary(salary4.lm)$r.squared
+model4adjustedr2 <- summary(salary4.lm)$adj.r.squared
+
+# Printing out the first 10 coefficients and r-squared metrics
+coef(salary4.lm)[0:10]
+cat("R-Squared:", model4r2, "\nAdjusted R-Squared:", model4adjustedr2)
+```
+
+### ANOVA Analysis of Model 4
+```{r}
+salary4.aov <- aov(Salary ~ Team + Years_Length * POS, salary)
+summary(salary4.aov)
+```
+
+```{r}
+summaryanova <- summary(salary4.aov)[[1]]["Df"]
+df <- summary(salary4.aov)[[1]]["F value"]
+colnames(df) <- gsub(" ", ".", colnames(df))
+
+df$FCrit <- with(summaryanova, qf(c(0.05),Df,580,lower.tail=FALSE))
+df$IsSignificant <- with(df, ifelse(F.value > FCrit, 1, 0))
+df
+```
+Using alpha=0.05, all of the main effects and interactions are significant.
+
+## Model with interactions between Team and POS, Team and Years_Length (MODEL 5)
+```{r}
+salary5.lm <- lm(Salary ~ Team * Years_Length + Team * POS, salary)
+model5r2 <- summary(salary5.lm)$r.squared
+model5adjustedr2 <- summary(salary5.lm)$adj.r.squared
+
+# Printing out the first 10 coefficients and r-squared metrics
+coef(salary5.lm)[0:10]
+cat("R-Squared:", model5r2, "\nAdjusted R-Squared:", model5adjustedr2)
+```
+
+### ANOVA Analysis of Model 5
+```{r}
+salary5.aov <- aov(Salary ~ Team * Years_Length + Team * POS, salary)
+summary(salary5.aov)
+```
+
+```{r}
+summaryanova <- summary(salary5.aov)[[1]]["Df"]
+df <- summary(salary5.aov)[[1]]["F value"]
+colnames(df) <- gsub(" ", ".", colnames(df))
+
+df$FCrit <- with(summaryanova, qf(c(0.05),Df,365,lower.tail=FALSE))
+df$IsSignificant <- with(df, ifelse(F.value > FCrit, 1, 0))
+df
+```
+Using alpha=0.05, all of the main effects and interactions are significant.
+
+### Model with interactions between Team and POS, POS and Years_Length (MODEL 6)
+```{r}
+salary6.lm <- lm(Salary ~ Team * POS + POS * Years_Length, salary)
+model6r2 <- summary(salary6.lm)$r.squared
+model6adjustedr2 <- summary(salary6.lm)$adj.r.squared
+
+# Printing out the first 10 coefficients and r-squared metrics
+coef(salary6.lm)[0:10]
+cat("R-Squared:", model6r2, "\nAdjusted R-Squared:", model6adjustedr2)
+```
+
+### ANOVA Analysis of Model 6
+```{r}
+salary6.aov <- aov(Salary ~ Team * POS + POS * Years_Length, salary)
+summary(salary6.aov)
+```
+
+```{r}
+summaryanova <- summary(salary6.aov)[[1]]["Df"]
+df <- summary(salary6.aov)[[1]]["F value"]
+colnames(df) <- gsub(" ", ".", colnames(df))
+
+df$FCrit <- with(summaryanova, qf(c(0.05),Df,388,lower.tail=FALSE))
+df$IsSignificant <- with(df, ifelse(F.value > FCrit, 1, 0))
+df
+```
+Using alpha=0.05, all of the main effects and interactions are significant.
+
+## Model with interactions between Team and Years_Length, POS and Years_Length (MODEL 7)
+```{r}
+salary7.lm <- lm(Salary ~ Team * Years_Length + POS * Years_Length, salary)
+model7r2 <- summary(salary7.lm)$r.squared
+model7adjustedr2 <- summary(salary7.lm)$adj.r.squared
+
+# Printing out the first 10 coefficients and r-squared metrics
+coef(salary7.lm)[0:10]
+cat("R-Squared:", model7r2, "\nAdjusted R-Squared:", model7adjustedr2)
+```
+
+### ANOVA Analysis of Model 7
+```{r}
+salary7.aov <- aov(Salary ~ Team * Years_Length + POS * Years_Length, salary)
+summary(salary7.aov)
+```
+
+```{r}
+summaryanova <- summary(salary7.aov)[[1]]["Df"]
+df <- summary(salary7.aov)[[1]]["F value"]
+colnames(df) <- gsub(" ", ".", colnames(df))
+
+df$FCrit <- with(summaryanova, qf(c(0.05),Df,551,lower.tail=FALSE))
+df$IsSignificant <- with(df, ifelse(F.value > FCrit, 1, 0))
+df
+```
+Using alpha=0.05, all of the main effects and interactions are significant.
+
+## Model with all three 2-way interactions (MODEL 8)
+```{r}
+salary8.lm <- lm(Salary ~ Team * Years_Length + Team * POS + POS * Years_Length, salary)
+model8r2 <- summary(salary8.lm)$r.squared
+model8adjustedr2 <- summary(salary8.lm)$adj.r.squared
+
+# Printing out the first 10 coefficients and r-squared metrics
+coef(salary8.lm)[0:10]
+cat("R-Squared:", model8r2, "\nAdjusted R-Squared:", model8adjustedr2)
+```
+
+### ANOVA Analysis of Model 8
+```{r}
+salary8.aov <- aov(Salary ~ Team * Years_Length + Team * POS + POS * Years_Length, salary)
+summary(salary8.aov)
+```
+
+```{r}
+summaryanova <- summary(salary8.aov)[[1]]["Df"]
+df <- summary(salary8.aov)[[1]]["F value"]
+colnames(df) <- gsub(" ", ".", colnames(df))
+
+df$FCrit <- with(summaryanova, qf(c(0.05),Df,359,lower.tail=FALSE))
+df$IsSignificant <- with(df, ifelse(F.value > FCrit, 1, 0))
+df
+```
+Using alpha=0.05, all of the main effects and interactions are significant.
+
+## Basic Model (Model with no interaction)
+```{r}
+basic.lm <- lm(Salary ~ Team + Years_Length + POS, salary)
+basicr2 <- summary(basic.lm)$r.squared
+basicmodeladjustedr2 <- summary(basic.lm)$adj.r.squared
+
+# Printing out the first 10 coefficients and r-squared metrics
+coef(basic.lm)[0:10]
+cat("R-Squared:", basicr2, "\nAdjusted R-Squared:", basicmodeladjustedr2)
+```
+
+### ANOVA Analysis of Basic Model
+```{r}
+salarybasic.aov <- aov(Salary ~ Team + Years_Length + POS, salary)
+summary(salarybasic.aov)
+```
+
+```{r}
+summaryanova <- summary(salarybasic.aov)[[1]]["Df"]
+df <- summary(salarybasic.aov)[[1]]["F value"]
+colnames(df) <- gsub(" ", ".", colnames(df))
+
+df$FCrit <- with(summaryanova, qf(c(0.05),Df,588,lower.tail=FALSE))
+df$IsSignificant <- with(df, ifelse(F.value > FCrit, 1, 0))
+df
+```
+Using alpha=0.05, all of the main effects are significant.
+
+# Model Selection
+
+### Creating a dataframe to compare model performance
+```{r}
+Model.Type <- c("Full Model", "Model 2", "Model 3", "Model 4", 
+                "Model 5", "Model 6", "Model 7", "Model 8", "Basic Model")
+AdjustedRSquared <- c(fullmodeladjustedr2, model2adjustedr2, model3adjustedr2, 
+                      model4adjustedr2, model5adjustedr2, model6adjustedr2, 
+                      model7adjustedr2, model8adjustedr2, basicmodeladjustedr2)
+AdjustedRSquared <- round(AdjustedRSquared, digits = 4)
+
+comparisondf <- data.frame(Model.Type, AdjustedRSquared)
+comparisondf <- comparisondf[order(-AdjustedRSquared),]
+comparisondf
+```
+
+The Full Model is the best model as it produces the greatest adjusted r-squared value.
+
+### Model Adequacy Checking for Selected Model
+```{r, warning=FALSE}
+library(ggplot2)
+opar <- par(mfrow=c(2,2),cex=.8)
+plot(salaryfull.aov)
+```
+There are no indications of model inadequecy.
+
+### Checking Factor Importance
+```{r}
+noPOS.lm <- lm(Salary ~ Team * Years_Length, salary)
+noPOSr2 <- summary(noPOS.lm)$r.squared
+noPOSadjustedr2 <- summary(noPOS.lm)$adj.r.squared
+
+cat("R-Squared:", noPOSr2, "\nAdjusted R-Squared:", noPOSadjustedr2)
+```
+
+```{r}
+noTeam.lm <- lm(Salary ~ POS * Years_Length, salary)
+noTeamr2 <- summary(noTeam.lm)$r.squared
+noTeamadjustedr2 <- summary(noTeam.lm)$adj.r.squared
+
+cat("R-Squared:", noTeamr2, "\nAdjusted R-Squared:", noTeamadjustedr2)
+```
+
+```{r}
+noYears.lm <- lm(Salary ~ Team * POS, salary)
+noYearsr2 <- summary(noYears.lm)$r.squared
+noYearsadjustedr2 <- summary(noYears.lm)$adj.r.squared
+
+cat("R-Squared:", noYearsr2, "\nAdjusted R-Squared:", noYearsadjustedr2)
+```
+Models omitting on factor produce worse adjusted r-squared values than the full model: factors are important.
+
+# Conclusion
+The best model to predict salary with the predictors Team, POS, and Years_Length is the full model. It produces the best adjusted r-squared value with all of its main effects and interactions significant. Furthermore, I've confirmed that all factors in my full model are important by comparing the adjusted r-squared values of my full model with separate models which omitted one variable.
+
+The full model can be defined by:  
+$Salary =  \beta_0 + YearsLength + Team + POS + YearsLength*Team + YearsLength*POS + Team*POS + YearsLength*Team*POS$

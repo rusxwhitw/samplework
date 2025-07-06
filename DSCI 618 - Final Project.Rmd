@@ -1,0 +1,76 @@
+---
+title: "Statistical Design Final Project"
+author: "Russell Whitworth"
+date: "2025-04-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#clear memory
+rm(list = ls())
+```
+
+# Overview
+Suppose we’d like to address the power for a new RCBD study with 6 treatments and anticipate the mean of the 4 treatments can be estimated as [80,83,86,89], and the block variance is estimated as 25, and the residual variance is estimated as 55.
+
+## Load in libraries
+```{r}
+library(WebPower)
+```
+
+## Given Data
+```{r}
+treatment_means <- c(80, 83, 86, 89)   # Treatment means
+block_variance <- 25                    # Block variance
+residual_variance <- 55                 # Residual variance
+sigma_squared <- block_variance + residual_variance # Total variance
+```
+
+## Calculating Effect Size (Cohen's ƒ)
+```{r}
+mean_treatment <- mean(treatment_means)
+between_group_variance <- sum((treatment_means - mean_treatment)^2) / (length(treatment_means) - 1)
+f_value <- sqrt(between_group_variance / sigma_squared) # Cohen's f (effect size)
+f_value
+```
+This is considered a large effect size according to Cohen’s benchmarks (large ≥ 0.4).
+
+## Power Analysis for Different Block Sizes
+```{r}
+# For 5 blocks
+power_5 <- wp.anova(f = f_value, k = 6, n = 30, alpha = 0.05, power = NULL)$power
+
+# For 10 blocks
+power_10 <- wp.anova(f = f_value, k = 6, n = 60, alpha = 0.05, power = NULL)$power
+
+# For 15 blocks
+power_15 <- wp.anova(f = f_value, k = 6, n = 90, alpha = 0.05, power = NULL)$power
+
+# For 20 blocks
+power_20 <- wp.anova(f = f_value, k = 6, n = 120, alpha = 0.05, power = NULL)$power
+
+# For 25 blocks
+power_25 <- wp.anova(f = f_value, k = 6, n = 150, alpha = 0.05, power = NULL)$power
+
+# For 30 blocks
+power_30 <- wp.anova(f = f_value, k = 6, n = 180, alpha = 0.05, power = NULL)$power
+
+# Display results as a data frame
+power_results <- data.frame(
+  Blocks = c(5, 10, 15, 20, 25, 30),
+  Power = round(c(power_5, power_10, power_15, power_20, power_25, power_30), 4)
+)
+
+print(power_results)
+
+```
+
+```{r}
+wp_target <- wp.anova(f = f_value, k = 6, power = 0.8, alpha = 0.05)
+wp_target$n/6 # This is the number of blocks needed
+```
+13 blocks are needed for 0.8 power.
